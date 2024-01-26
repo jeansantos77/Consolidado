@@ -1,8 +1,13 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using AutoMapper;
+using Consolidado.API.Application.Interfaces;
+using Consolidado.API.Domain.Entities;
+using Consolidado.API.Domain.Interfaces;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,11 +18,15 @@ namespace Consolidado.API.Application.Implementations
         private readonly IConnection _connection;
         private readonly IModel _channel;
 
+        private readonly IMapper _mapper;
         private readonly QueueConfig _queueConfig;
+        private readonly ILactoConsolidadoService _lactoConsolidadoService;
 
-        public RabbitMQWorkerService(IOptions<QueueConfig> queueConfig)
+        public RabbitMQWorkerService(IMapper mapper, IOptions<QueueConfig> queueConfig, ILactoConsolidadoService lactoConsolidadoService)
         {
+            _mapper = mapper;
             _queueConfig = queueConfig.Value;
+            _lactoConsolidadoService = lactoConsolidadoService;
 
             var factory = new ConnectionFactory
             {
@@ -59,6 +68,38 @@ namespace Consolidado.API.Application.Implementations
                 {
                     var body = ea.Body.ToArray();
                     var message = System.Text.Encoding.UTF8.GetString(body);
+
+                    ILactoConsolidadoModel model = JsonSerializer.Deserialize<ILactoConsolidadoModel>(message);
+
+                    ILactoConsolidadoModel modelConsolidadoBefore = await _lactoConsolidadoService.GetLastBeforeDate(model.Data);
+
+                    model.Saldo = ((modelConsolidadoBefore != null) ? modelConsolidadoBefore.Saldo : 0) + model.Creditos - model.Debitos;
+
+                    ILactoConsolidadoModel modelConsolidadoExistente = await _lactoConsolidadoService.GetByDate(model.Data);
+
+                    decimal valorAtualizarSaldo = model.Creditos - model.Debitos;
+
+                    if (modelConsolidadoExistente == null)
+                    {
+                        LactoConsolidado lactoConsolidado = _mapper.Map<LactoConsolidado>(model);
+                        await _lactoConsolidadoService.Add(lactoConsolidado);
+                    }
+                    else
+                    {
+                        if (model.Atualizar == false)
+                        {
+                            model.Creditos += modelConsolidadoExistente.Creditos;
+                            model.Debitos += modelConsolidadoExistente.Debitos;
+                            model.Saldo = ((modelConsolidadoBefore != null) ? modelConsolidadoBefore.Saldo : 0) + model.Creditos - model.Debitos;
+                        }
+
+                        LactoConsolidado lactoConsolidado = _mapper.Map<LactoConsolidado>(model);
+
+                        await _lactoConsolidadoService.Update(lactoConsolidado);
+                    }
+
+                    await _lactoConsolidadoService.ReprocessForward(model.Data, valorAtualizarSaldo);
+
 
                     //string msgJson = JsonSerializer.Deserialize<>(message);
 

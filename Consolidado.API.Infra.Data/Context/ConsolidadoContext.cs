@@ -11,7 +11,7 @@ namespace Consolidado.API.Infra.Data.Context
             
         }
 
-        public DbSet<LactoConsolidado> Usuarios { get; set; }
+        public DbSet<LactoConsolidado> LactoConsolidados { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

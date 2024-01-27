@@ -2,6 +2,8 @@
 using Consolidado.API.Application.Interfaces;
 using Consolidado.API.Domain.Entities;
 using Consolidado.API.Domain.Interfaces;
+using Consolidado.API.Domain.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
@@ -20,13 +22,14 @@ namespace Consolidado.API.Application.Implementations
 
         private readonly IMapper _mapper;
         private readonly QueueConfig _queueConfig;
-        private readonly ILactoConsolidadoService _lactoConsolidadoService;
+        private readonly IServiceProvider _serviceProvider;
 
-        public RabbitMQWorkerService(IMapper mapper, IOptions<QueueConfig> queueConfig, ILactoConsolidadoService lactoConsolidadoService)
+        public RabbitMQWorkerService(IMapper mapper, IOptions<QueueConfig> queueConfig, IServiceProvider serviceProvider)
         {
             _mapper = mapper;
             _queueConfig = queueConfig.Value;
-            _lactoConsolidadoService = lactoConsolidadoService;
+
+            _serviceProvider = serviceProvider;
 
             var factory = new ConnectionFactory
             {
@@ -47,18 +50,24 @@ namespace Consolidado.API.Application.Implementations
             var consumer = new EventingBasicConsumer(_channel);
             consumer.Received += (model, ea) =>
             {
-                Task task = ProcessWithRetry(ea);
+
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    ILactoConsolidadoService lactoConsolidadoService = scope.ServiceProvider.GetRequiredService<ILactoConsolidadoService>();
+                    
+                    Task task = ProcessWithRetry(lactoConsolidadoService, ea);
+                }
             };
 
             _channel.BasicConsume(queue: _queueConfig.QueueName, autoAck: true, consumer: consumer);
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                await Task.Delay(1000, stoppingToken); // Aguarde 1 segundo antes de verificar novamente
+                await Task.Delay(30000, stoppingToken); // Aguarde 30 segundo antes de verificar novamente
             }
         }
 
-        private async Task ProcessWithRetry(BasicDeliverEventArgs ea)
+        private async Task ProcessWithRetry(ILactoConsolidadoService lactoConsolidadoService, BasicDeliverEventArgs ea)
         {
             int retryCount = 0;
 
@@ -69,41 +78,36 @@ namespace Consolidado.API.Application.Implementations
                     var body = ea.Body.ToArray();
                     var message = System.Text.Encoding.UTF8.GetString(body);
 
-                    ILactoConsolidadoModel model = JsonSerializer.Deserialize<ILactoConsolidadoModel>(message);
+                    QueueMessageModel queueModel = JsonSerializer.Deserialize<QueueMessageModel>(message);
 
-                    ILactoConsolidadoModel modelConsolidadoBefore = await _lactoConsolidadoService.GetLastBeforeDate(model.Data);
+                    ILactoConsolidadoModel model = _mapper.Map<LactoConsolidadoModel>(queueModel);
+
+                    ILactoConsolidadoModel modelConsolidadoBefore = lactoConsolidadoService.GetLastBeforeDate(model.Data);
 
                     model.Saldo = ((modelConsolidadoBefore != null) ? modelConsolidadoBefore.Saldo : 0) + model.Creditos - model.Debitos;
 
-                    ILactoConsolidadoModel modelConsolidadoExistente = await _lactoConsolidadoService.GetByDate(model.Data);
+                    LactoConsolidado lactoExistente = lactoConsolidadoService.GetByDate(model.Data);
 
                     decimal valorAtualizarSaldo = model.Creditos - model.Debitos;
 
-                    if (modelConsolidadoExistente == null)
+                    if (lactoExistente == null)
                     {
                         LactoConsolidado lactoConsolidado = _mapper.Map<LactoConsolidado>(model);
-                        await _lactoConsolidadoService.Add(lactoConsolidado);
+                        lactoConsolidadoService.Add(lactoConsolidado);
                     }
                     else
                     {
-                        if (model.Atualizar == false)
+                        if (queueModel.Atualizar)
                         {
-                            model.Creditos += modelConsolidadoExistente.Creditos;
-                            model.Debitos += modelConsolidadoExistente.Debitos;
-                            model.Saldo = ((modelConsolidadoBefore != null) ? modelConsolidadoBefore.Saldo : 0) + model.Creditos - model.Debitos;
+                            lactoExistente.Creditos += model.Creditos;
+                            lactoExistente.Debitos += model.Debitos;
+                            lactoExistente.Saldo = ((modelConsolidadoBefore != null) ? modelConsolidadoBefore.Saldo : 0) + lactoExistente.Creditos - lactoExistente.Debitos;
                         }
 
-                        LactoConsolidado lactoConsolidado = _mapper.Map<LactoConsolidado>(model);
-
-                        await _lactoConsolidadoService.Update(lactoConsolidado);
+                        lactoConsolidadoService.Update(lactoExistente);
                     }
 
-                    await _lactoConsolidadoService.ReprocessForward(model.Data, valorAtualizarSaldo);
-
-
-                    //string msgJson = JsonSerializer.Deserialize<>(message);
-
-                    Console.WriteLine($"Mensagem recebida: {message}");
+                    //await lactoConsolidadoService.ReprocessForward(model.Data, valorAtualizarSaldo);
 
                     break;
                 }

@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace Consolidado.API.Infra.Data.Repository
 {
@@ -22,35 +21,36 @@ namespace Consolidado.API.Infra.Data.Repository
             _mapper = mapper;
         }
 
-        public async Task Add(LactoConsolidado entity)
+        public void Add(LactoConsolidado entity)
         {
-            await _dbContext.Set<LactoConsolidado>().AddAsync(entity);
-            await _dbContext.SaveChangesAsync();
+            _dbContext.Set<LactoConsolidado>().Add(entity);
+            _dbContext.SaveChanges();
         }
 
-        public async Task<LactoConsolidadoModel> GetByDate(DateTime data)
+        public LactoConsolidado GetByDate(DateTime data)
         {
-            LactoConsolidadoModel model = _mapper.Map<LactoConsolidadoModel>(await _dbContext.Set<LactoConsolidado>().Where(x => x.Data.Date == data).AsNoTracking().FirstOrDefaultAsync());
-            return model;
+            LactoConsolidado entity = _dbContext.Set<LactoConsolidado>().Where(x => x.Data.Date == data.Date).AsNoTracking().FirstOrDefault();
+            return entity;
         }
 
-        public async Task<List<LactoConsolidadoModel>> GetByRangeDate(DateTime startDate, DateTime endDate)
+        public List<LactoConsolidadoModel> GetByRangeDate(DateTime startDate, DateTime endDate)
         {
-            List<LactoConsolidadoModel> models = _mapper.Map<List<LactoConsolidadoModel>>(await _dbContext.Set<LactoConsolidado>()
-                .Where(x => x.Data.Date >= startDate && x.Data.Date <= endDate)
+            List<LactoConsolidadoModel> models = _mapper.Map<List<LactoConsolidadoModel>>(_dbContext.Set<LactoConsolidado>()
+                .Where(x => x.Data.Date >= startDate.Date && x.Data.Date <= endDate.Date)
                 .AsNoTracking()
-                .ToListAsync());
+                .ToList());
 
             return models;
         }
 
-        public async Task<LactoConsolidadoModel> GetLastBeforeDate(DateTime data)
+        public LactoConsolidadoModel GetLastBeforeDate(DateTime data)
         {
-            LactoConsolidadoModel model = _mapper.Map<LactoConsolidadoModel>(await _dbContext.Set<LactoConsolidado>()
-                .Where(x => x.Data.Date < data)
+            LactoConsolidado entidade = _dbContext.Set<LactoConsolidado>().Where(x => x.Data.Date < data.Date)
                 .AsNoTracking()
                 .OrderByDescending(x => x.Data)
-                .FirstOrDefaultAsync());
+                .FirstOrDefault();
+
+            LactoConsolidadoModel model = _mapper.Map<LactoConsolidadoModel>(entidade);
 
             if (model == null)
             {
@@ -63,15 +63,15 @@ namespace Consolidado.API.Infra.Data.Repository
             return model;
         }
 
-        public Task ReprocessForward(DateTime data, decimal valor)
+        public void ReprocessForward(DateTime data, decimal valor)
         {
             throw new NotImplementedException();
         }
 
-        public async Task Update(LactoConsolidado entity)
+        public void Update(LactoConsolidado entity)
         {
             _dbContext.Set<LactoConsolidado>().Update(entity);
-            await _dbContext.SaveChangesAsync();
+            _dbContext.SaveChanges();
         }
     }
 }

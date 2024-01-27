@@ -1,4 +1,5 @@
 using Consolidado.API.Application.Implementations;
+using Consolidado.API.Application.Interfaces;
 using Consolidado.API.Domain.Interfaces;
 using Consolidado.API.Infra.Data.AutoMapper;
 using Consolidado.API.Infra.Data.Context;
@@ -9,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 
 namespace Consolidado.API
@@ -32,10 +34,15 @@ namespace Consolidado.API
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Consolidado.API", Version = "v1" });
             });
 
-            services.AddDbContext<ConsolidadoContext>(options => options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
+            services.AddDbContext<ConsolidadoContext>(options =>
+            {
+                options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"));
+                options.EnableSensitiveDataLogging(); // Ativar rastreamento detalhado
+            } /*, ServiceLifetime.Transient*/);
 
-            services.AddScoped<ILactoConsolidadoRepository, LactoConsolidadoRepository>();
             services.AddAutoMapper(typeof(AutoMappings));
+            services.AddScoped<ILactoConsolidadoRepository, LactoConsolidadoRepository>();
+            services.AddScoped<ILactoConsolidadoService, LactoConsolidadoService>();
 
             services.AddHostedService<RabbitMQWorkerService>();
 

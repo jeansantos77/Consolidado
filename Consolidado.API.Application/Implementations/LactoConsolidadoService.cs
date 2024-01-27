@@ -2,6 +2,7 @@
 using Consolidado.API.Domain.Entities;
 using Consolidado.API.Domain.Interfaces;
 using Consolidado.API.Domain.Models;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -17,34 +18,47 @@ namespace Consolidado.API.Application.Implementations
             _lactoConsolidadoRepository = lactoConsolidadoRepository;
         }
 
-        public async Task Add(LactoConsolidado entity)
+        public void Add(LactoConsolidado entity)
         {
-            await _lactoConsolidadoRepository.Add(entity);
+            _lactoConsolidadoRepository.Add(entity);
         }
 
-        public async Task<LactoConsolidadoModel> GetByDate(DateTime data)
+        public LactoConsolidado GetByDate(DateTime data)
         {
-            return await _lactoConsolidadoRepository.GetByDate(data);
+            return _lactoConsolidadoRepository.GetByDate(data);
         }
 
-        public async Task<List<LactoConsolidadoModel>> GetByRangeDate(DateTime startDate, DateTime endDate)
+        public List<LactoConsolidadoModel> GetByRangeDate(DateTime startDate, DateTime endDate)
         {
-            return await _lactoConsolidadoRepository.GetByRangeDate(startDate, endDate);
+            LactoConsolidadoModel beforeLacto = GetLastBeforeDate(startDate);
+
+            List<LactoConsolidadoModel> lactos = _lactoConsolidadoRepository.GetByRangeDate(startDate, endDate);
+
+            decimal saldoAnterior = beforeLacto.Saldo;  
+
+            foreach (var item in lactos)
+            {
+                item.SaldoDiaAnterior = saldoAnterior;
+                saldoAnterior = item.Saldo;
+            }
+
+            return lactos;
+
         }
 
-        public async Task<LactoConsolidadoModel> GetLastBeforeDate(DateTime data)
+        public LactoConsolidadoModel GetLastBeforeDate(DateTime data)
         {
-            return await _lactoConsolidadoRepository.GetLastBeforeDate(data);
+            return _lactoConsolidadoRepository.GetLastBeforeDate(data);
         }
 
-        public async Task ReprocessForward(DateTime data, decimal valor)
+        public void ReprocessForward(DateTime data, decimal valor)
         {
-            await _lactoConsolidadoRepository.ReprocessForward(data, valor);
+            _lactoConsolidadoRepository.ReprocessForward(data, valor);
         }
 
-        public async Task Update(LactoConsolidado entity)
+        public void Update(LactoConsolidado entity)
         {
-            await _lactoConsolidadoRepository.Update(entity);
+            _lactoConsolidadoRepository.Update(entity);
         }
     }
 }

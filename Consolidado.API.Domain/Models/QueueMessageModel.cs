@@ -1,12 +1,12 @@
 ﻿using System;
 
-namespace Consolidado.API.Domain.Interfaces
+namespace Consolidado.API.Domain.Models
 {
-    public interface ILactoConsolidadoModel
+    public class QueueMessageModel
     {
         public DateTime Data { get; set; }
         public decimal Creditos { get; set; }
         public decimal Debitos { get; set; }
-        public decimal Saldo { get; set; }
+        public bool Atualizar { get; set; }
     }
 }

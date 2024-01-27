@@ -2,10 +2,9 @@
 using Consolidado.API.Domain.Entities;
 using Consolidado.API.Domain.Interfaces;
 using Consolidado.API.Domain.Models;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
+using System.Linq;
 
 namespace Consolidado.API.Application.Implementations
 {
@@ -51,9 +50,9 @@ namespace Consolidado.API.Application.Implementations
             return _lactoConsolidadoRepository.GetLastBeforeDate(data);
         }
 
-        public void ReprocessForward(DateTime data, decimal valor)
+        public void ReprocessForward(DateTime data, decimal saldoAnterior)
         {
-            _lactoConsolidadoRepository.ReprocessForward(data, valor);
+            _lactoConsolidadoRepository.ReprocessForward(data, saldoAnterior);
         }
 
         public void Update(LactoConsolidado entity)

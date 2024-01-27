@@ -12,6 +12,6 @@ namespace Consolidado.API.Domain.Interfaces
         LactoConsolidado GetByDate(DateTime data);
         List<LactoConsolidadoModel> GetByRangeDate(DateTime startDate, DateTime endDate);
         LactoConsolidadoModel GetLastBeforeDate(DateTime data);
-        void ReprocessForward(DateTime data, decimal valor);
+        void ReprocessForward(DateTime data, decimal saldoAnterior);
     }
 }

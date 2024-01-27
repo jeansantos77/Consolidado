@@ -3,10 +3,13 @@ using Consolidado.API.Domain.Entities;
 using Consolidado.API.Domain.Interfaces;
 using Consolidado.API.Domain.Models;
 using Consolidado.API.Infra.Data.Context;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
+using System.Net;
 
 namespace Consolidado.API.Infra.Data.Repository
 {
@@ -37,6 +40,7 @@ namespace Consolidado.API.Infra.Data.Repository
         {
             List<LactoConsolidadoModel> models = _mapper.Map<List<LactoConsolidadoModel>>(_dbContext.Set<LactoConsolidado>()
                 .Where(x => x.Data.Date >= startDate.Date && x.Data.Date <= endDate.Date)
+                .OrderBy(x => x.Data)
                 .AsNoTracking()
                 .ToList());
 
@@ -63,9 +67,18 @@ namespace Consolidado.API.Infra.Data.Repository
             return model;
         }
 
-        public void ReprocessForward(DateTime data, decimal valor)
+        public void ReprocessForward(DateTime data, decimal saldoAnterior)
         {
-            throw new NotImplementedException();
+            List<LactoConsolidado> lactos = _dbContext.Set<LactoConsolidado>().Where(x => x.Data.Date > data.Date)
+                .OrderBy(x => x.Data)
+                .ToList();
+
+            foreach (var item in lactos)
+            {
+                item.Saldo = saldoAnterior + item.Creditos - item.Debitos;
+                Update(item);
+                saldoAnterior = item.Saldo;
+            }
         }
 
         public void Update(LactoConsolidado entity)

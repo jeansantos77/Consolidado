@@ -80,34 +80,7 @@ namespace Consolidado.API.Application.Implementations
 
                     QueueMessageModel queueModel = JsonSerializer.Deserialize<QueueMessageModel>(message);
 
-                    ILactoConsolidadoModel model = _mapper.Map<LactoConsolidadoModel>(queueModel);
-
-                    ILactoConsolidadoModel modelConsolidadoBefore = lactoConsolidadoService.GetLastBeforeDate(model.Data);
-
-                    model.Saldo = ((modelConsolidadoBefore != null) ? modelConsolidadoBefore.Saldo : 0) + model.Creditos - model.Debitos;
-
-                    LactoConsolidado lactoExistente = lactoConsolidadoService.GetByDate(model.Data);
-
-                    decimal valorAtualizarSaldo = model.Creditos - model.Debitos;
-
-                    if (lactoExistente == null)
-                    {
-                        LactoConsolidado lactoConsolidado = _mapper.Map<LactoConsolidado>(model);
-                        lactoConsolidadoService.Add(lactoConsolidado);
-                    }
-                    else
-                    {
-                        if (queueModel.Atualizar)
-                        {
-                            lactoExistente.Creditos += model.Creditos;
-                            lactoExistente.Debitos += model.Debitos;
-                            lactoExistente.Saldo = ((modelConsolidadoBefore != null) ? modelConsolidadoBefore.Saldo : 0) + lactoExistente.Creditos - lactoExistente.Debitos;
-                        }
-
-                        lactoConsolidadoService.Update(lactoExistente);
-                    }
-
-                    //await lactoConsolidadoService.ReprocessForward(model.Data, valorAtualizarSaldo);
+                    ProcessQueueMessage(lactoConsolidadoService, queueModel);
 
                     break;
                 }
@@ -119,6 +92,38 @@ namespace Consolidado.API.Application.Implementations
                 }
             }
                 
+        }
+
+        private void ProcessQueueMessage(ILactoConsolidadoService lactoConsolidadoService, QueueMessageModel queueModel)
+        {
+            ILactoConsolidadoModel model = _mapper.Map<LactoConsolidadoModel>(queueModel);
+
+            ILactoConsolidadoModel modelConsolidadoBefore = lactoConsolidadoService.GetLastBeforeDate(model.Data);
+
+            LactoConsolidado lactoExistente = lactoConsolidadoService.GetByDate(model.Data);
+
+            decimal saldoAnterior;
+
+            if (lactoExistente == null)
+            {
+                model.Saldo = ((modelConsolidadoBefore != null) ? modelConsolidadoBefore.Saldo : 0) + model.Creditos - model.Debitos;
+                LactoConsolidado lactoConsolidado = _mapper.Map<LactoConsolidado>(model);
+                lactoConsolidadoService.Add(lactoConsolidado);
+
+                saldoAnterior = lactoConsolidado.Saldo;
+            }
+            else
+            {
+                lactoExistente.Creditos = (queueModel.Atualizar ? lactoExistente.Creditos : 0) + model.Creditos;
+                lactoExistente.Debitos = (queueModel.Atualizar ? lactoExistente.Debitos : 0) + model.Debitos;
+                lactoExistente.Saldo = ((modelConsolidadoBefore != null) ? modelConsolidadoBefore.Saldo : 0) + lactoExistente.Creditos - lactoExistente.Debitos;
+
+                lactoConsolidadoService.Update(lactoExistente);
+
+                saldoAnterior = lactoExistente.Saldo;
+            }
+
+            lactoConsolidadoService.ReprocessForward(model.Data, saldoAnterior);
         }
 
         public override void Dispose()

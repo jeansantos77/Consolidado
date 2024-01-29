@@ -5,6 +5,9 @@ Foi criado o microserviço Consolidado.API, este é responsável por expor endpoint
 	1. GET /Consolidado: mostra os lançamentos consolidados por data, contendo o saldo anterior, 
 	os créditos, os débitos e o saldo do dia. Para executar deve-se informar um intervalo de datas.
 
+O serviço tem uma classe WorkerService que fica rodando em background quando o serviço está UP e caso
+uma mensagem seja adicionada na fila do RabbitMQ essa classe consome a fila e processa a mensagem.
+
 # Instalação:
 
 	- Clonar o repositório com o comando "git clone https://github.com/jeansantos77/Consolidado.git"

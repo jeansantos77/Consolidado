@@ -63,7 +63,7 @@ namespace Consolidado.API.Application.Implementations
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                await Task.Delay(30000, stoppingToken); // Aguarde 30 segundo antes de verificar novamente
+                await Task.Delay(10000, stoppingToken); // Aguarde 10 segundo antes de verificar novamente
             }
         }
 
@@ -78,7 +78,7 @@ namespace Consolidado.API.Application.Implementations
                     var body = ea.Body.ToArray();
                     var message = System.Text.Encoding.UTF8.GetString(body);
 
-                    QueueMessageModel queueModel = JsonSerializer.Deserialize<QueueMessageModel>(message);
+                    IQueueMessageModel queueModel = JsonSerializer.Deserialize<IQueueMessageModel>(message);
 
                     ProcessQueueMessage(lactoConsolidadoService, queueModel);
 
@@ -94,7 +94,7 @@ namespace Consolidado.API.Application.Implementations
                 
         }
 
-        private void ProcessQueueMessage(ILactoConsolidadoService lactoConsolidadoService, QueueMessageModel queueModel)
+        private void ProcessQueueMessage(ILactoConsolidadoService lactoConsolidadoService, IQueueMessageModel queueModel)
         {
             ILactoConsolidadoModel model = _mapper.Map<LactoConsolidadoModel>(queueModel);
 
@@ -114,8 +114,8 @@ namespace Consolidado.API.Application.Implementations
             }
             else
             {
-                lactoExistente.Creditos = (queueModel.Atualizar ? lactoExistente.Creditos : 0) + model.Creditos;
-                lactoExistente.Debitos = (queueModel.Atualizar ? lactoExistente.Debitos : 0) + model.Debitos;
+                lactoExistente.Creditos = model.Creditos;
+                lactoExistente.Debitos = model.Debitos;
                 lactoExistente.Saldo = ((modelConsolidadoBefore != null) ? modelConsolidadoBefore.Saldo : 0) + lactoExistente.Creditos - lactoExistente.Debitos;
 
                 lactoConsolidadoService.Update(lactoExistente);

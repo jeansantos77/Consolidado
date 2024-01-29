@@ -78,7 +78,7 @@ namespace Consolidado.API.Application.Implementations
                     var body = ea.Body.ToArray();
                     var message = System.Text.Encoding.UTF8.GetString(body);
 
-                    IQueueMessageModel queueModel = JsonSerializer.Deserialize<IQueueMessageModel>(message);
+                    IQueueMessageModel queueModel = JsonSerializer.Deserialize<QueueMessageModel>(message);
 
                     ProcessQueueMessage(lactoConsolidadoService, queueModel);
 

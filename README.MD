@@ -5,8 +5,14 @@ Foi criado o microserviço Consolidado.API, este é responsável por expor endpoint
 	1. GET /Consolidado: mostra os lançamentos consolidados por data, contendo o saldo anterior, 
 	os créditos, os débitos e o saldo do dia. Para executar deve-se informar um intervalo de datas.
 
-O serviço tem uma classe WorkerService que fica rodando em background quando o serviço está UP e caso
+O serviço tem uma classe WorkerService que fica rodando em background quando o serviço está UP, caso
 uma mensagem seja adicionada na fila do RabbitMQ essa classe consome a fila e processa a mensagem.
+
+No caso de ocorrer um erro nesse processo o serviço tem um tratamento de Retry onde ele tentará executar
+o processo diversas vezes conforme estiver configurado no appsettings. Está configurado para repetir 5 vezes
+
+# Evidências
+	- Na pasta Consolidado contem uma imagem "Evidencias.png" mostrando a execução do endpoint consolidado. 
 
 # Instalação:
 
